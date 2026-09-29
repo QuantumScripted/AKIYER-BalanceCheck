@@ -1,0 +1,488 @@
+<title>Daily Balance Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300..900&family=Roboto:wght@400;500;700&display=swap">
+<style>
+/* Layout: one calm column (max 640px). Tonal Material 3 surfaces. Story: today's wheel -> where you're heading; amber marks the one area worth fixing first. */
+:root{
+  --bg:#F5FBF5; --card:#FFFFFF; --surface2:#E8F0E9;
+  --fg:#171D19; --fg2:#404943; --outline:#707972; --outline-v:#C0C9C1;
+  --primary:#146C43; --on-primary:#FFFFFF; --primary-c:#B4F0CB; --on-primary-c:#00210F;
+  --tertiary:#7D5700; --tertiary-c:#FFDEA6; --on-tertiary-c:#271900;
+  --seg-mid:#7FC29C; --seg-low:#C0C9C1;
+  --font-display:"Roboto Flex","Roboto",system-ui,sans-serif;
+  --font-body:"Roboto",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1511; --card:#171D19; --surface2:#1F2621;
+    --fg:#DEE4DD; --fg2:#BFC9C0; --outline:#89938B; --outline-v:#404943;
+    --primary:#82D9A6; --on-primary:#00391E; --primary-c:#00522F; --on-primary-c:#B4F0CB;
+    --tertiary:#F5BD52; --tertiary-c:#5E4200; --on-tertiary-c:#FFDEA6;
+    --seg-mid:#3E7A58; --seg-low:#404943;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1511; --card:#171D19; --surface2:#1F2621;
+  --fg:#DEE4DD; --fg2:#BFC9C0; --outline:#89938B; --outline-v:#404943;
+  --primary:#82D9A6; --on-primary:#00391E; --primary-c:#00522F; --on-primary-c:#B4F0CB;
+  --tertiary:#F5BD52; --tertiary-c:#5E4200; --on-tertiary-c:#FFDEA6;
+  --seg-mid:#3E7A58; --seg-low:#404943;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p,ul,blockquote,figure{margin:0}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;letter-spacing:-.01em}
+button,input{font:inherit;color:inherit}
+.wrap{max-width:640px;margin-inline:auto;padding-inline:16px}
+
+/* App bar */
+.appbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--outline-v)}
+.appbar .wrap{display:flex;align-items:center;gap:12px;padding-block:12px}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--primary);color:var(--on-primary);display:grid;place-items:center;font:700 .95rem var(--font-display);flex:none}
+.who{font:600 1rem/1.2 var(--font-display)}
+.role{font-size:.8125rem;color:var(--fg2)}
+
+main{display:grid;gap:16px;padding-block:20px 48px}
+.screen{display:grid;gap:16px;min-width:0}
+[hidden]{display:none!important}
+.screen.enter{animation:rise .3s ease-out}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes glow{0%,100%{opacity:1}50%{opacity:.45}}
+.seg.miss.pulse{animation:glow 2.4s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.screen.enter,.seg.miss.pulse{animation:none}.bar-fill{transition:none!important}}
+
+/* Surfaces */
+.card{background:var(--card);border:1px solid var(--outline-v);border-radius:28px;padding:24px;display:grid;gap:16px;min-width:0}
+.card.tonal{background:var(--primary-c);color:var(--on-primary-c);border-color:transparent}
+.card.warm{background:var(--tertiary-c);color:var(--on-tertiary-c);border-color:transparent}
+.eyebrow{font:600 .75rem var(--font-body);letter-spacing:.09em;text-transform:uppercase;color:var(--primary)}
+.tonal .eyebrow{color:var(--on-primary-c)}
+.warm .eyebrow{color:var(--on-tertiary-c)}
+
+/* Hero */
+.hero{padding:28px 24px;justify-items:start}
+h1{font-size:clamp(2rem,8vw,2.9rem);line-height:1.08;font-weight:750}
+.hl{background:var(--tertiary-c);color:var(--on-tertiary-c);padding:0 .22em;border-radius:10px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+h2{font-size:1.5rem;line-height:1.2;font-weight:650}
+.lead{font-size:1.0625rem;max-width:52ch}
+.hero .lead{opacity:.9}
+.coachline{display:flex;align-items:center;gap:12px;font-size:.9375rem}
+.coachline .avatar{background:var(--on-primary-c);color:var(--primary-c)}
+.coachline span{min-width:0}
+.gets{display:flex;flex-wrap:wrap;gap:20px;align-items:center}
+.gets .wheel{width:150px;flex:none}
+.gets>div{flex:1 1 220px;min-width:0;display:grid;gap:12px}
+.checks{list-style:none;padding:0;display:grid;gap:10px}
+.checks li{display:flex;gap:10px;align-items:flex-start}
+.checks svg{width:22px;height:22px;fill:var(--primary);flex:none;margin-top:1px}
+
+/* Wheel */
+.wheel{width:min(220px,64vw);aspect-ratio:1;max-width:100%;justify-self:center}
+.wheel svg{display:block;width:100%;height:100%}
+.seg{fill:none;stroke-width:20;stroke-linecap:round}
+.seg.full{stroke:var(--primary)}
+.seg.mid{stroke:var(--seg-mid)}
+.seg.low{stroke:var(--seg-low)}
+.seg.miss{stroke:var(--tertiary)}
+.wbig{font:700 34px var(--font-display);fill:var(--fg)}
+.wsmall{font:500 11px var(--font-body);fill:var(--fg2);letter-spacing:.08em;text-transform:uppercase}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 28px;border:0;border-radius:100px;font-weight:500;font-size:1.0625rem;cursor:pointer;text-decoration:none;position:relative}
+.btn:focus-visible,.opt:has(input:focus-visible),.field-in:focus-visible,.copt:has(input:focus-visible) span{outline:3px solid var(--primary);outline-offset:2px}
+.btn.filled{background:var(--primary);color:var(--on-primary)}
+.btn.filled:hover:not(:disabled){background-image:linear-gradient(color-mix(in srgb,var(--on-primary) 10%,transparent),color-mix(in srgb,var(--on-primary) 10%,transparent))}
+.btn.filled:disabled{background:color-mix(in srgb,var(--fg) 12%,transparent);color:color-mix(in srgb,var(--fg) 38%,transparent);cursor:not-allowed}
+.btn.text{background:transparent;color:var(--primary);padding:0 16px}
+.btn.text:hover{background:color-mix(in srgb,var(--primary) 10%,transparent)}
+.btn.block{width:100%}
+.btn svg{width:22px;height:22px;fill:currentColor;flex:none}
+
+/* Quiz */
+.qtop{display:flex;justify-content:space-between;align-items:center;gap:8px 12px;flex-wrap:wrap}
+.qcount{font-size:.875rem;font-weight:500;color:var(--fg2)}
+.qcount b{color:var(--primary);font-weight:600}
+.chip{font-size:.8125rem;font-weight:500;padding:5px 12px;border-radius:8px;background:var(--primary-c);color:var(--on-primary-c)}
+.progress{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;background:var(--primary);transition:width .3s ease}
+.why{font-size:.9375rem;color:var(--fg2);padding:12px 14px;border-radius:12px;background:var(--surface2)}
+#qtext{font-size:1.375rem}
+.opts{display:grid;gap:10px;border:0;padding:0;margin:0;min-width:0}
+.opt{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:16px;border:1px solid var(--outline-v);background:var(--card);cursor:pointer;min-height:60px}
+.opt:hover{background:color-mix(in srgb,var(--primary) 7%,var(--card))}
+.opt:has(input:checked){background:var(--primary-c);color:var(--on-primary-c);border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+.opt input{width:22px;height:22px;margin:0;accent-color:var(--primary);flex:none}
+.opt span{min-width:0}
+.actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:4px}
+
+/* Capture */
+.field{display:grid;gap:8px}
+.field>span,.chips legend{font-size:.875rem;font-weight:500;color:var(--fg2)}
+.field-in{width:100%;min-height:56px;padding:0 16px;border-radius:12px;border:1px solid var(--outline);background:transparent;font-size:1.0625rem}
+.field-in:hover{border-color:var(--fg)}
+.chips{border:0;padding:0;margin:0;min-width:0}
+.chips legend{padding:0;margin-bottom:8px}
+.chip-row{display:flex;flex-wrap:wrap;gap:8px}
+.copt{position:relative}
+.copt input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.copt span{display:inline-flex;align-items:center;min-height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--outline);font-weight:500;font-size:.9375rem}
+.copt:hover span{background:color-mix(in srgb,var(--primary) 8%,transparent)}
+.copt:has(input:checked) span{background:var(--primary-c);color:var(--on-primary-c);border-color:var(--primary)}
+.copt:has(input:checked) span::before{content:"\2713";margin-right:8px}
+.fine{font-size:.8125rem;color:var(--fg2)}
+
+/* Result */
+.result-head{justify-items:center;text-align:center}
+.result-head h2{max-width:20ch}
+.duo{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:8px;width:100%}
+.duo figure{display:grid;gap:8px;min-width:0}
+.duo .wheel{width:100%;max-width:190px}
+.duo figcaption{font-size:.8125rem;font-weight:500;color:var(--fg2)}
+.duo .arrow{align-self:center;padding-bottom:28px}
+.duo .arrow svg{width:28px;height:28px;fill:var(--primary);display:block}
+.pill{font-size:.875rem;font-weight:600;padding:6px 14px;border-radius:8px;background:var(--primary-c);color:var(--on-primary-c)}
+.result-head .lead{color:var(--fg2)}
+.warm h2{font-size:1.75rem}
+.warm p{max-width:56ch}
+.tip{padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--on-tertiary-c) 10%,transparent);font-size:.9375rem}
+.rows{display:grid;gap:14px;list-style:none;padding:0}
+.row{display:grid;gap:6px}
+.row-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.row-name{font-weight:500}
+.row-lvl{font-size:.8125rem;color:var(--fg2)}
+.track{height:8px;border-radius:4px;background:var(--surface2);overflow:hidden}
+.track i{display:block;height:100%;border-radius:4px}
+.track i.full{background:var(--primary)}
+.track i.mid{background:var(--seg-mid)}
+.track i.low{background:var(--seg-low)}
+.track i.miss{background:var(--tertiary)}
+.cta h2{font-size:1.75rem}
+.cta p{max-width:56ch}
+.cta .fine{color:var(--on-primary-c)}
+.sel{user-select:all;font-weight:600}
+.legal{font-size:.8125rem;color:var(--fg2);padding:8px 4px 0}
+</style>
+
+<header class="appbar"><div class="wrap">
+  <div class="avatar" id="avatar" aria-hidden="true">AK</div>
+  <div><div class="who" id="coachName">AK Iyer</div><div class="role">Health Coach &amp; Facilitator</div></div>
+</div></header>
+
+<main class="wrap">
+
+  <section id="intro" class="screen" aria-label="Welcome">
+    <div class="card tonal hero">
+      <p class="eyebrow">Free 2-minute Balance Check</p>
+      <h1 id="introH" tabindex="-1">Feel better every day. First, find your <span class="hl">missing link</span>.</h1>
+      <p class="lead">Answer 8 quick questions about how you eat, sleep and move. You'll see where you stand today and what to work on first.</p>
+      <button class="btn filled" id="startBtn" type="button">Start my Balance Check</button>
+      <div class="coachline"><div class="avatar" aria-hidden="true" id="avatar2">AK</div><span id="coachLine"></span></div>
+    </div>
+    <div class="card">
+      <div class="gets">
+        <div class="wheel" id="heroWheel"></div>
+        <div>
+          <h3 style="font-size:1.125rem">In two minutes you'll know</h3>
+          <ul class="checks">
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>Your balance score across 8 everyday foundations</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>The one area that needs attention first</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>A small first step you can start today</span></li>
+          </ul>
+        </div>
+      </div>
+      <p class="fine">Made for vegetarian, eggetarian, non-vegetarian and vegan eaters. No sign-up, no cost.</p>
+    </div>
+  </section>
+
+  <section id="quiz" class="screen" hidden aria-label="Quiz">
+    <div class="card">
+      <div class="qtop"><span class="qcount" id="qcount" aria-live="polite">Question 1 of 8</span><span class="chip" id="qchip">Hydration</span></div>
+      <div class="progress" role="progressbar" aria-label="Quiz progress" aria-valuemin="0" aria-valuemax="8" aria-valuenow="1" id="progress"><div class="bar-fill" id="barFill"></div></div>
+      <h2 id="qtext" tabindex="-1"></h2>
+      <p class="why" id="qwhy"></p>
+      <div class="opts" id="opts" role="radiogroup" aria-labelledby="qtext"></div>
+      <div class="actions">
+        <button class="btn text" id="backBtn" type="button">Back</button>
+        <button class="btn filled" id="nextBtn" type="button" disabled>Next</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="capture" class="screen" hidden aria-labelledby="capH">
+    <form class="card" id="capForm" novalidate>
+      <p class="eyebrow">All 8 answered</p>
+      <h2 id="capH" tabindex="-1">Your result is ready. Three quick things to personalise it.</h2>
+      <label class="field" for="nameIn"><span>Your first name</span>
+        <input class="field-in" id="nameIn" name="name" type="text" autocomplete="given-name" maxlength="40" placeholder="For example, Priya"></label>
+      <fieldset class="chips"><legend>How do you eat?</legend><div class="chip-row" id="dietRow"></div></fieldset>
+      <fieldset class="chips"><legend>What do you most want to improve?</legend><div class="chip-row" id="goalRow"></div></fieldset>
+      <button class="btn filled block" id="showBtn" type="submit" disabled>Show my result</button>
+    </form>
+  </section>
+
+  <section id="result" class="screen" hidden aria-labelledby="resH">
+    <div class="card result-head">
+      <p class="eyebrow">Your Daily Balance Check</p>
+      <h2 id="resH" tabindex="-1"></h2>
+      <div class="duo">
+        <figure><div class="wheel" id="resWheel"></div><figcaption>Where you are today</figcaption></figure>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg></div>
+        <figure><div class="wheel" id="goalWheel"></div><figcaption>Where you're heading</figcaption></figure>
+      </div>
+      <span class="pill" id="resPill"></span>
+      <p class="lead" id="resLead"></p>
+    </div>
+
+    <div class="card warm" id="missCard">
+      <p class="eyebrow" id="missEye">Your missing link</p>
+      <h2 id="missName"></h2>
+      <p id="missText"></p>
+      <p class="tip" id="missTip"></p>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:1.125rem">Your eight foundations</h3>
+      <ul class="rows" id="rows"></ul>
+    </div>
+
+    <div class="card tonal cta">
+      <p class="eyebrow">Your next step</p>
+      <h2>Want the full picture? Let's talk.</h2>
+      <p id="ctaText"></p>
+      <a class="btn filled block" id="waBtn" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2A9.9 9.9 0 0 0 3.5 16.9L2 22l5.25-1.38A9.9 9.9 0 1 0 12.04 2Zm0 1.8a8.1 8.1 0 1 1-4.13 15.07l-.3-.18-3.1.82.83-3.02-.2-.31A8.1 8.1 0 0 1 12.04 3.8Zm-3.2 3.9c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.15.2 2.07 3.3 5.1 4.5 2.52 1 3.03.8 3.58.75.55-.05 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.13-.27-.2-.57-.35-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5-.9-.8-1.5-1.78-1.67-2.08-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.38-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.5Z"/></svg>
+        <span>Send me more information</span></a>
+      <p class="fine">Button not opening? Message me on <span class="sel" id="numText"></span>.</p>
+    </div>
+
+    <div style="display:flex;justify-content:center"><button class="btn text" id="retakeBtn" type="button">Retake the check</button></div>
+    <p class="legal">This check is general wellness information only. It is not medical advice and does not diagnose any condition. Please speak to a doctor before making big changes to your diet or exercise, especially if you are pregnant, taking medication or managing a health condition.</p>
+  </section>
+
+</main>
+
+<script>
+/* ===== Edit these values ===== */
+const CONFIG = {
+  COACH_NAME: "AK Iyer", COACH_FIRST: "AK", INITIALS: "AK",
+  WHATSAPP_NUMBER: "918123121081",      // country code + number, digits only
+  DISPLAY_NUMBER: "+91 81231 21081"
+};
+
+/*LOGIC*/
+const DIETS = [
+  { k:"veg",    l:"Vegetarian",     m:"vegetarian" },
+  { k:"egg",    l:"Eggetarian",     m:"an eggetarian" },
+  { k:"nonveg", l:"Non-vegetarian", m:"non-vegetarian" },
+  { k:"vegan",  l:"Vegan",          m:"vegan" }
+];
+const GOALS = [
+  { k:"energy",    l:"More energy",          m:"more energy" },
+  { k:"weight",    l:"Manage my weight",     m:"managing my weight" },
+  { k:"digestion", l:"Better digestion",     m:"better digestion" },
+  { k:"fit",       l:"Stronger and fitter",  m:"getting stronger and fitter" },
+  { k:"sleep",     l:"Sleep and calm",       m:"better sleep and a calmer mind" }
+];
+const F = [
+  { name:"Hydration", q:"Picture a busy workday. How does your water intake usually go?",
+    why:"Thirst tends to show up only after your body's water level has already dropped by 1 to 2%.",
+    gap:"Water carries nutrients around your body and supports your energy through the day. When intake runs low, everything else has to work harder.",
+    tip:"Keep a bottle in sight and finish one before lunch.",
+    opts:[{t:"I keep a bottle around, but some days I barely finish it",s:1},{t:"I drink only when I feel thirsty, and often forget",s:0},{t:"I sip steadily through the day and rarely feel thirsty",s:2}] },
+  { name:"Protein", q:"Think of your last three meals. How many had a clear protein source? Dal, rajma, chana, paneer, curd, tofu, soy, sprouts, eggs, chicken and fish all count.",
+    why:"Protein is a main building block of muscles, bones, skin and nails. A common guide for adults is about 1 g per kg of body weight each day.",
+    gap:"Protein helps your body maintain muscle and keeps you feeling full between meals. Low intake often shows up as tiredness and constant snacking.",
+    tip:{ veg:"Add one protein to every meal: dal, chana, rajma, paneer, curd, tofu or sprouts.",
+          egg:"Add one protein to every meal: eggs, dal, chana, rajma, paneer, curd or sprouts.",
+          nonveg:"Add one protein to every meal: eggs, chicken, fish, dal, chana or curd.",
+          vegan:"Add one protein to every meal: dal, chana, rajma, tofu, soy chunks, sprouts or peanuts." },
+    opts:[{t:"One or two of them",s:1},{t:"All three, or nearly",s:2},{t:"None. Mostly rice, roti, bread or snacks",s:0}] },
+  { name:"Fibre", q:"How much of what you eat is whole and fibre-rich? Think atta roti, millets, oats, brown rice, salad, pulses and whole fruit.",
+    why:"Indian dietary guidelines suggest about 25 g of fibre for every 2000 kcal you eat. Many people fall short.",
+    gap:"Fibre supports regular digestion and helps you feel full for longer. Without it, digestion can feel sluggish and hunger comes back early.",
+    tip:"Add one salad, one whole fruit or one whole-grain swap to two meals today.",
+    opts:[{t:"Mostly refined: maida, white bread, polished rice",s:0},{t:"A mix. Some whole grains and pulses, but I skip salad most days",s:1},{t:"Whole grains, pulses and vegetables in most of my meals",s:2}] },
+  { name:"Vitamins & minerals", q:"How many servings of vegetables and fruit did you eat yesterday? One serving is about a fist-sized portion.",
+    why:"A 2021 review of studies found that more than half of people in India are short of at least one micronutrient.",
+    gap:"Vitamins and minerals keep your energy, immunity and everyday body functions running, and most of them have to come from food.",
+    tip:"Build one meal around vegetables and keep a fruit as your snack.",
+    opts:[{t:"Two or three",s:1},{t:"Four or more",s:2},{t:"One, or none",s:0}] },
+  { name:"Healthy fats", q:"Where do most of the fats in your day come from?",
+    why:"The type of fat matters more than most people expect. Omega-3s come from fish, and from walnuts, flax and chia seeds.",
+    gap:"Your body needs fat, and the kind matters. Nuts, seeds and home-cooked food support a balanced intake, while fried and packaged food tends to crowd them out.",
+    tip:{ veg:"Swap one fried snack for a handful of nuts, and add walnuts, flax or chia seeds to a meal.",
+          egg:"Swap one fried snack for a handful of nuts, and add walnuts, flax or chia seeds to a meal.",
+          nonveg:"Swap one fried snack for a handful of nuts, and try fish once or twice a week.",
+          vegan:"Swap one fried snack for a handful of nuts, and add walnuts, flax or chia seeds to a meal." },
+    opts:[{t:"Home-cooked meals, but I rarely have nuts, seeds or fish",s:1},{t:"Home-cooked meals, plus nuts and seeds most days, and fish if I eat it",s:2},{t:"Mostly deep-fried snacks, bakery items and packaged food",s:0}] },
+  { name:"Plant colour", q:"Across a normal week, which of these do you eat? Leafy greens, orange or yellow (carrot, papaya, pumpkin), red (tomato, beetroot) and purple (brinjal, jamun, berries).",
+    why:"Plant colours come from phytonutrients, such as lutein in leafy greens and lycopene in tomatoes.",
+    gap:"Each colour brings different plant compounds. A mostly beige plate of rice, roti and biscuits leaves most of them out.",
+    tip:"Aim for three colours on your plate at lunch and dinner.",
+    opts:[{t:"Only one or two of these",s:0},{t:"All four, most weeks",s:2},{t:"Three of the four",s:1}] },
+  { name:"Rest & sleep", q:"On most nights, how does your sleep look?",
+    why:"Diet, exercise, work schedules, screens and stress all shape how well you sleep.",
+    gap:"Rest is part of nutrition too. When sleep is short or broken, it is harder to make good food choices and to wake up refreshed.",
+    tip:"Pick a fixed bedtime and put screens away an hour before it.",
+    opts:[{t:"Past midnight or scrolling in bed, but I manage",s:1},{t:"Late nights, broken sleep, and I wake up tired",s:0},{t:"In bed before 11 pm and I wake up fairly fresh",s:2}] },
+  { name:"Movement", q:"Outside of work, how often do you move on purpose? Walking, yoga, gym, sport, cycling and dance all count.",
+    why:"Balanced nutrition works best together with regular movement and proper rest.",
+    gap:"Movement and balanced eating work as a pair. Regular activity supports your energy, strength and mood.",
+    tip:"Start with a 20-minute brisk walk after one meal.",
+    opts:[{t:"Once or twice a week",s:1},{t:"Rarely. My day is mostly sitting",s:0},{t:"Four or more days a week",s:2}] }
+];
+
+function tipOf(f, diet){ return typeof f.tip === "string" ? f.tip : f.tip[diet]; }
+function compute(ans){
+  const total = ans.reduce((a,b)=>a+b,0);
+  const pct = Math.round(total / (F.length*2) * 100);
+  let mi = 0;
+  ans.forEach((s,i)=>{ if(s < ans[mi]) mi = i; });
+  const hasGap = ans[mi] < 2;
+  const strong = ans.filter(s=>s===2).length;
+  const label = total >= 12 ? "Well balanced" : total >= 7 ? "A good base with a few gaps" : "Room to grow";
+  return { total, pct, mi, hasGap, strong, label };
+}
+function buildMessage(name, r, dietKey, goalKey, scores){
+  const diet = DIETS.find(d=>d.k===dietKey).m;
+  const goal = GOALS.find(g=>g.k===goalKey).m;
+  const groups = [["Strong",2],["Building",1],["Needs attention",0]];
+  const lines = groups.map(g=>{
+    const n = F.filter((f,i)=>scores[i]===g[1]).map(f=>f.name);
+    return n.length ? g[0] + ": " + n.join(", ") : "";
+  }).filter(Boolean);
+  return "Hi " + CONFIG.COACH_FIRST + ", I'm " + name + ". I've just completed your Daily Balance Check and would value your guidance.\n\n" +
+    "I'm " + diet + ", and my goal is " + goal + ". My balance score is " + r.pct + "%.\n\n" +
+    lines.join("\n") + "\n\nI'd be grateful if you could share the information. Thank you!";
+}
+/*END*/
+
+const $ = id => document.getElementById(id);
+const screens = ["intro","quiz","capture","result"];
+const ENC = {2:"Good start", 4:"Halfway there", 6:"Nearly there", 7:"Last one"};
+let idx = 0, picked = Array(F.length).fill(null), adv = null;
+
+function polar(cx,cy,r,deg){ const a=(deg-90)*Math.PI/180; return [cx+r*Math.cos(a), cy+r*Math.sin(a)]; }
+function arc(i){
+  const gap=8, a0=i*45+gap/2, a1=(i+1)*45-gap/2;
+  const p0=polar(100,100,74,a0), p1=polar(100,100,74,a1);
+  return "M"+p0[0].toFixed(2)+" "+p0[1].toFixed(2)+"A74 74 0 0 1 "+p1[0].toFixed(2)+" "+p1[1].toFixed(2);
+}
+function drawWheel(el, classes, big, small, label, pulse){
+  el.innerHTML = '<svg viewBox="0 0 200 200" role="img" aria-label="'+label+'">' +
+    classes.map((c,i)=>'<path class="seg '+c+(c==="miss"&&pulse?" pulse":"")+'" d="'+arc(i)+'"/>').join("") +
+    '<text class="wbig" x="100" y="108" text-anchor="middle">'+big+'</text>' +
+    '<text class="wsmall" x="100" y="128" text-anchor="middle">'+small+'</text></svg>';
+}
+function buildChips(el, name, items){
+  el.innerHTML = items.map(it=>'<label class="copt"><input type="radio" name="'+name+'" value="'+it.k+'"><span>'+it.l+'</span></label>').join("");
+}
+function chosen(name){ const c=document.querySelector('input[name="'+name+'"]:checked'); return c ? c.value : null; }
+function updateShow(){ $("showBtn").disabled = !($("nameIn").value.trim() && chosen("diet") && chosen("goal")); }
+
+function show(id){
+  screens.forEach(s => { $(s).hidden = (s !== id); });
+  const el = $(id); el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter");
+  window.scrollTo(0,0);
+  const h = id==="intro" ? $("introH") : id==="quiz" ? $("qtext") : id==="capture" ? $("capH") : $("resH");
+  if(h) h.focus({preventScroll:true});
+}
+
+function renderQ(){
+  const f = F[idx];
+  $("qcount").innerHTML = "Question " + (idx+1) + " of " + F.length + (ENC[idx] ? " &middot; <b>" + ENC[idx] + "</b>" : "");
+  $("qchip").textContent = f.name;
+  $("barFill").style.width = ((idx+1)/F.length*100) + "%";
+  $("progress").setAttribute("aria-valuenow", idx+1);
+  $("qtext").textContent = f.q;
+  $("qwhy").textContent = f.why;
+  const box = $("opts"); box.innerHTML = "";
+  f.opts.forEach((o,j)=>{
+    const l = document.createElement("label"); l.className = "opt";
+    const inp = document.createElement("input"); inp.type="radio"; inp.name="q"; inp.value=j; inp.checked = picked[idx]===j;
+    const s = document.createElement("span"); s.textContent = o.t;
+    l.append(inp, s);
+    inp.addEventListener("click", e => {
+      picked[idx] = j; $("nextBtn").disabled = false;
+      if(e.detail > 0){ clearTimeout(adv); adv = setTimeout(next, 300); }
+    });
+    box.append(l);
+  });
+  $("nextBtn").disabled = picked[idx]==null;
+  $("nextBtn").textContent = idx===F.length-1 ? "Finish" : "Next";
+}
+function next(){
+  clearTimeout(adv);
+  if(picked[idx]==null) return;
+  if(idx < F.length-1){ idx++; renderQ(); $("qtext").focus({preventScroll:true}); window.scrollTo(0,0); }
+  else { show("capture"); $("nameIn").focus({preventScroll:true}); }
+}
+function back(){
+  clearTimeout(adv);
+  if(idx>0){ idx--; renderQ(); window.scrollTo(0,0); } else show("intro");
+}
+
+function renderResult(name, dietKey, goalKey){
+  const scores = picked.map((p,i)=>F[i].opts[p].s);
+  const r = compute(scores);
+  const cls = scores.map((s,i)=> r.hasGap && i===r.mi ? "miss" : s===2 ? "full" : s===1 ? "mid" : "low");
+  drawWheel($("resWheel"), cls, r.pct+"%", "today", "Your balance today is "+r.pct+" percent", true);
+  drawWheel($("goalWheel"), Array(F.length).fill("full"), "8/8", "heading", "Goal: all eight foundations strong", false);
+  $("resH").textContent = r.strong > 0
+    ? name + ", " + r.strong + " of 8 areas are already strong."
+    : name + ", you've taken the first step.";
+  $("resPill").textContent = r.label;
+  $("resLead").textContent = "Small, steady changes add up. Here is where to start.";
+  if(r.hasGap){
+    $("missEye").textContent = "Your missing link";
+    $("missName").textContent = F[r.mi].name;
+    $("missText").textContent = F[r.mi].gap;
+    $("missTip").textContent = "Quick win: " + tipOf(F[r.mi], dietKey);
+  } else {
+    $("missEye").textContent = "Nothing is missing";
+    $("missName").textContent = "Your foundations look balanced";
+    $("missText").textContent = "All eight areas scored well. The next step is keeping them steady week after week, and small habits do that best.";
+    $("missTip").textContent = "Quick win: pick the one habit you find hardest to repeat and protect it this week.";
+  }
+  const order = scores.map((s,i)=>i).sort((a,b)=> scores[a]-scores[b] || a-b);
+  const lvl = ["Needs attention","Building","Strong"];
+  $("rows").innerHTML = order.map(i=>{
+    const c = r.hasGap && i===r.mi ? "miss" : scores[i]===2 ? "full" : scores[i]===1 ? "mid" : "low";
+    const w = [12,55,100][scores[i]];
+    const tag = r.hasGap && i===r.mi ? "Missing link" : lvl[scores[i]];
+    return '<li class="row"><div class="row-top"><span class="row-name">'+F[i].name+'</span><span class="row-lvl">'+tag+'</span></div><div class="track"><i class="'+c+'" style="width:'+w+'%"></i></div></li>';
+  }).join("");
+  $("ctaText").textContent = "I'll share information that covers all eight areas, so you can see the whole picture and decide your next step.";
+  const msg = buildMessage(name, r, dietKey, goalKey, scores);
+  $("waBtn").href = "https://wa.me/" + CONFIG.WHATSAPP_NUMBER + "?text=" + encodeURIComponent(msg);
+  show("result");
+}
+function restart(){ idx=0; picked=Array(F.length).fill(null); renderQ(); show("quiz"); }
+
+/* Boot */
+(function(){
+  $("coachName").textContent = CONFIG.COACH_NAME;
+  $("avatar").textContent = CONFIG.INITIALS; $("avatar2").textContent = CONFIG.INITIALS;
+  $("coachLine").textContent = "Coach " + CONFIG.COACH_FIRST + " reads every result and replies personally on WhatsApp.";
+  $("numText").textContent = CONFIG.DISPLAY_NUMBER;
+  drawWheel($("heroWheel"), ["full","full","full","miss","full","full","full","full"], "8", "foundations", "Eight foundations, one of them is missing", true);
+  buildChips($("dietRow"), "diet", DIETS);
+  buildChips($("goalRow"), "goal", GOALS);
+  $("startBtn").addEventListener("click", restart);
+  $("retakeBtn").addEventListener("click", restart);
+  $("nextBtn").addEventListener("click", next);
+  $("backBtn").addEventListener("click", back);
+  $("nameIn").addEventListener("input", updateShow);
+  $("dietRow").addEventListener("change", updateShow);
+  $("goalRow").addEventListener("change", updateShow);
+  $("capForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const n = $("nameIn").value.trim().replace(/\s+/g," ");
+    const d = chosen("diet"), g = chosen("goal");
+    if(n && d && g) renderResult(n, d, g);
+  });
+})();
+</script>
